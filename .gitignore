@@ -128,3 +128,6 @@ dkms.conf
 *.iml
 *.ipr
 
+
+spam_mail_detect/3th/
+
