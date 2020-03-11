@@ -30,7 +30,7 @@ import datetime
 # local package import
 from email_parser import *
 from email_search import *
-
+from email_content_parser import *
 
 base_dir                = "/srkim/mnt/hdd250G/maildata"
 word_dict_dir           = base_dir + "/word_dict"
@@ -42,17 +42,21 @@ class makeWordEmbedding:
         self.eml_list    = eml_list
         self.save_prefix = word_embedding_prefix
         if old_embedding == None:
-            self.embedding = {
-                "WordEmbedding"     : {},
-                "DomainEmbedding"    : {},
-            }
+            #self.embedding = {
+            #    "Word-List"     : {},
+            #    "Domin-List"    : {},
+            #}
+            self.embedding = {}
+            for embedding_name in embedding_name_list:
+                self.embedding[embedding_name] = {}
 
     def work(self):
-        WordEmbedding = self.embedding["WordEmbedding"]
-        DomainEmbedding = self.embedding["DomainEmbedding"]
+        #WordEmbedding = self.embedding["Word-List"]
+        #DomainEmbedding = self.embedding["Domin-List"]
         for idx, mail_path in enumerate(self.eml_list):
-            print("[%d/%d] %s (w:%d, d:%d)" % (idx, len(self.eml_list), mail_path, \
-                                                  len(WordEmbedding.keys()), len(DomainEmbedding.keys())))
+            #print("[%d/%d] %s (w:%d, d:%d)" % (idx, len(self.eml_list), mail_path, \
+            #                                      len(WordEmbedding.keys()), len(DomainEmbedding.keys())))
+            print("[%d/%d] %s" % (idx, len(self.eml_list), mail_path))
 
             report = load_mail_report(mail_path)
 
@@ -65,13 +69,14 @@ class makeWordEmbedding:
                 data = paragraph["Data"]
                 if category != CONTENT_CAT_TEXT:
                     continue
-                for word in data["Word-List"]:
-                    self.__add_embedding(WordEmbedding, word)
-                for domain in data["Domin-List"]:
-                    self.__add_embedding(DomainEmbedding, domain)
-
-            #if idx == 100:
-            #    break
+                for embedding_name in embedding_name_list:
+                    for word in data[embedding_name]:
+                        self.__add_embedding(self.embedding[embedding_name], word)
+                #for word in data["Word-List"]:
+                #    self.__add_embedding(WordEmbedding, word)
+                #for domain in data["Domin-List"]:
+                #    self.__add_embedding(DomainEmbedding, domain)
+        return
 
     @classmethod
     def make_embedding_name(cls, yyyymmdd="", subdir=None):
@@ -87,18 +92,23 @@ class makeWordEmbedding:
         return json_file_name, pickle_file_name
 
     def save(self, save_dir, yyyymmdd="", subdir=None):
-        WordEmbedding = self.embedding["WordEmbedding"]   
-        DomainEmbedding = self.embedding["DomainEmbedding"]
+        #WordEmbedding = self.embedding["Word-List"]   
+        #DomainEmbedding = self.embedding["Domin-List"]
 
-        WordEmbedding   = sorted(WordEmbedding.items(), key=lambda x: x[1], reverse=True)
-        DomainEmbedding = sorted(DomainEmbedding.items(), key=lambda x: x[1], reverse=True)
+        #WordEmbedding   = sorted(WordEmbedding.items(), key=lambda x: x[1], reverse=True)
+        #DomainEmbedding = sorted(DomainEmbedding.items(), key=lambda x: x[1], reverse=True)
 
-        #for item in WordEmbedding:
-        #    print("%-4s : %s" % (item[1], item[0]))
-        total_result = {
-            "WordEmbedding"     : WordEmbedding,
-            "DomainEmbedding"   : DomainEmbedding,
-        }
+        #total_result = {
+        #    "Word-List"    : WordEmbedding,
+        #    "Domin-List"   : DomainEmbedding,
+        #}
+
+        total_result = {}
+        for embedding_name in embedding_name_list:
+            embedding = self.embedding[embedding_name]
+            embedding = sorted(embedding.items(), key=lambda x: x[1], reverse=True)
+            total_result[embedding_name] = embedding
+
         jDumps = json.dumps(total_result, indent=4, ensure_ascii=False)
         json_file_name, pickle_file_name = makeWordEmbedding.make_embedding_name(yyyymmdd, subdir)
         with gzip.open(json_file_name, "wb") as fd:

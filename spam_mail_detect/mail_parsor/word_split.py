@@ -177,14 +177,3 @@ def do_word_split(decoded_body):
         result_list += sub_text_list2
 
     return result_list, url_listup, domain_listup
-
-
-
-
-
-
-
-
-
-
-

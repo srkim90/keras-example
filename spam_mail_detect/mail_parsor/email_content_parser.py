@@ -92,6 +92,12 @@ content_type_map = [
                                                             "application/x-rar-compressed") ,  None     ),
 ]
 
+embedding_name_list = [
+    "Word-List" ,
+    "URL-List"  ,
+    "Domin-List",
+]
+
 class emailContentParser:
     def __init__(self):
         pass
@@ -126,9 +132,11 @@ class emailContentParser:
 
         parsed = do_word_split(body_block)
 
-        report_data["Word-List" ] = parsed[0]
-        report_data["URL-List"  ] = parsed[1]
-        report_data["Domin-List"] = parsed[2]
+        #report_data["Word-List" ] = parsed[0]
+        #report_data["URL-List"  ] = parsed[1]
+        #report_data["Domin-List"] = parsed[2]
+        for idx, parsed_at in enumerate(parsed):
+            report_data[embedding_name_list[idx]] = parsed_at
 
         return report_data
 
