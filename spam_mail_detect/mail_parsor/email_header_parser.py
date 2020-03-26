@@ -26,6 +26,7 @@ import base64
 import codecs
 import chardet
 import traceback
+import pygeoip
 
 '''
 {
@@ -48,6 +49,7 @@ class emailHeaderParser:
             "received"      : self.__handle_received,       # tags: from, by, with, for, date
             "subject"       : self.__handle_subject,        # tags: None
         }
+        #self.objGeoIP = pygeoip.GeoIP("GeoLite2-Country.mmdb")
         self.__do_value_parsing()
 
     def get_values(self):
@@ -159,6 +161,12 @@ class emailHeaderParser:
         else:
             for idx, key in enumerate(separators):
                 self.result_dict[header][idx][1].append(result_dict[separators[idx]])
+                IP = result_dict[separators[idx]]
+                #IP = "222.99.178.9"
+                #print(IP)
+                #contry = self.objGeoIP.record_by_name(IP)
+                #print(contry)
+                
         return
 
     def __handle_defaule(self, header, str_value):

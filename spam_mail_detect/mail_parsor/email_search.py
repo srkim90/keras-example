@@ -89,7 +89,7 @@ class emailSearch:
                     in_dict[item] = self.__search(base_dir, eml_list)
                     ln_file += len(eml_list)
                 except Exception as e:
-                    print("Error. %s" % (e,))
+                    #print("Error. %s" % (e,))
                     continue
             #print("%s: %d files" % (yyyymmdd, ln_file))
             eml_dict[yyyymmdd] = in_dict

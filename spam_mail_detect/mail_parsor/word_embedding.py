@@ -42,6 +42,7 @@ USAGE_TYPE_TRAIN    = 1
 data_set_prefix     = "data_set"
 word_embedding_package   = "data_package"
 word_embedding_file_name = "data_set.dat"
+word_embedding_cfg_name  = "data_cfg.dat"
 
 # word_to_index : word를 입력하면 index를 반환, coding 을 통해 출력 형식int, onehot 선택 가능하다.
 class wordEmbedding:
@@ -53,6 +54,9 @@ class wordEmbedding:
         self.index_dict     = dict_result[2] # index to word
         self.sz_embedding   = len(raw_list)
         self.embedding_name = embedding_name
+
+    def get_word_list(self):
+        return  list(self.word_dict.keys())
 
     def word_to_index(self, word, coding=EMBEDDING_ONEHOT):
         try:
@@ -128,17 +132,29 @@ class wordEmbeddingManager:
         self.objEmbedding = e.load()
         self.embedding_set  = {}
         self.data_set       = {}
-        self.coding         = coding
         for embedding_name in embedding_name_list:
             self.embedding_set[embedding_name]  = self.__setup_embedding(embedding_name, embedding_size)
-            self.data_set[embedding_name]       = { # embedding_name 별 임베딩 데이터 set 리스트 초기화
-                "train_data"     : [],    # 학습 데이터
-                "train_labels"   : [],    # 학습 라벨
-                "test_data"      : [],    # 테스트 데이터
-                "test_labels"    : [],    # 테스트 라벨
+        if saved_embedding_path == None:
+            self.coding         = coding
+            self.embedding_size = embedding_size
+            for embedding_name in embedding_name_list:
+                self.data_set[embedding_name]       = { # embedding_name 별 임베딩 데이터 set 리스트 초기화
+                    "train_data"     : [],    # 학습 데이터
+                    "train_labels"   : [],    # 학습 라벨
+                    "test_data"      : [],    # 테스트 데이터
+                    "test_labels"    : [],    # 테스트 라벨
+                }
+            self.config_set = {
+                "coding"             : self.coding,
+                "embedding_size"     : self.embedding_size,
             }
-        if saved_embedding_path != None:
+        else:
             self.__load_data(saved_embedding_path, max_size)
+            self.coding             = self.config_set["coding"]
+            self.embedding_size     = self.config_set["embedding_size"]
+
+    def get_embedding_size(self):
+        return self.embedding_size
 
     def shuffle_data_set(self):
         data_set = self.data_set
@@ -176,8 +192,9 @@ class wordEmbeddingManager:
             return None
         embedding = self.objEmbedding[embedding_name]
         if len(embedding) < embedding_size:
-            print("Insuffisant data of embedding : org=%d, input=%d" % (len(embedding), embedding_size))
-            return None
+            print("Insufficient data of embedding : org=%d, input=%d" % (len(embedding), embedding_size))
+            #return None
+            embedding_size = len(embedding)
         embedding = embedding[0:embedding_size]
         return wordEmbedding(embedding, embedding_name)
 
@@ -186,11 +203,20 @@ class wordEmbeddingManager:
             return None
         return self.embedding_set[embedding_name]
 
-    def get_data(self, embedding_name):
+    #def get_word_list(self, embedding_name): # 
+    #    if embedding_name not in self.data_set.keys():
+    #        return None
+    #    
+
+
+    def get_data(self, embedding_name): # 학습 데이터를 가져온다 (train_data 는 숫자로 치환된 단어 리스트 이다.)
         if embedding_name not in self.data_set.keys():
             return (None,) * 4
         a_data_set = self.data_set[embedding_name]
-        return a_data_set["train_data"], a_data_set["train_labels"], a_data_set["test_data"], a_data_set["test_labels"]
+        return (np.asarray(a_data_set["train_data"]), 
+                np.asarray(a_data_set["train_labels"]), 
+                np.asarray(a_data_set["test_data"]), 
+                np.asarray(a_data_set["test_labels"]))
 
     def __load_data(self, data_file_name=None, max_size=None):
         def load_subdata(file_name):
@@ -206,12 +232,19 @@ class wordEmbeddingManager:
             data_file_name = word_embedding_package
         pickle_package_dir = "%s/%s/%s" % (word_dict_dir, data_set_prefix, data_file_name)
         pickle_file_name   = "%s/%s" % (pickle_package_dir, word_embedding_file_name)
+        config_file_name   = "%s/%s" % (pickle_package_dir, word_embedding_cfg_name)
         try:
             if ".gz" == pickle_file_name[-3:].lower():
                 fd = gzip.open(pickle_file_name, "rb")
             else:
                 fd = open(pickle_file_name, "rb")
             data_set = pickle.load(fd)
+            fd.close()
+            if ".gz" == config_file_name[-3:].lower():
+                fd = gzip.open(config_file_name, "rb")
+            else:
+                fd = open(config_file_name, "rb")
+            self.config_set = pickle.load(fd)
             fd.close()
         except Exception as e:
             print("Error. Fail to load data : %s" % e)
@@ -230,24 +263,6 @@ class wordEmbeddingManager:
                         if len(label_data) > max_size:
                             label_data = label_data[0:max_size]
                 embedding_set[label_name] = label_data
-        self.data_set = data_set
-        return True
-
-    def __load_data2(self, data_file_name=None):
-        pickle_file_name = data_file_name
-        if data_file_name == None:
-            data_file_name = word_embedding_file_name
-            pickle_file_name = "%s/%s/%s" % (word_dict_dir, data_set_prefix, data_file_name)
-        try:
-            if ".gz" == pickle_file_name[-3:].lower():
-                fd = gzip.open(pickle_file_name, "rb")
-            else:
-                fd = open(pickle_file_name, "rb")
-            data_set = pickle.load(fd)
-            fd.close()
-        except Exception as e:
-            print("Error. Fail to load data : %s" % e)
-            return False
         self.data_set = data_set
         return True
 
@@ -295,6 +310,7 @@ class wordEmbeddingManager:
                 save_info = save_subdata(label_data, pickle_package_dir, embedding_name, label_name, save_a_file_max, do_gzip)
                 embedding_set[label_name] = save_info
         pickle_file_name = "%s/%s" % (pickle_package_dir, word_embedding_file_name)
+        config_file_name = "%s/%s" % (pickle_package_dir, word_embedding_cfg_name)
 
         if do_gzip == True:
             pickle_file_name += ".gz"
@@ -303,12 +319,23 @@ class wordEmbeddingManager:
             fd = open(pickle_file_name, "wb")
         pickle.dump(data_set, fd)
         fd.close()
+
+        if do_gzip == True:
+            pickle_file_name += ".gz"
+            fd = gzip.open(config_file_name, "wb")
+        else:
+            fd = open(config_file_name, "wb")
+        pickle.dump(self.config_set, fd)
+        fd.close()
+
         return True
 
     def add_training_data_from_file(self, file_name, label, usage=USAGE_TYPE_TRAIN): # 이메일 파일을 입력하면, dataset으로 변환
         for embedding_name in embedding_name_list:
             embedding = self.embedding_set[embedding_name]
             embedding_vector = embedding.convert_file_to_embedding(file_name, self.coding)
+            if embedding_vector == None:
+                continue
             if usage == USAGE_TYPE_TRAIN:
                 data_name  = "train_data"
                 label_name = "train_labels"
@@ -330,21 +357,22 @@ def main():
     #mgr.add_training_data_from_file(file_name, EMAIL_TYPE_SPAM)
     #mgr.add_training_data_from_file(file_name2, EMAIL_TYPE_HAM)
     #mgr.add_training_data_from_file(file_name3, EMAIL_TYPE_HAM)
+    #mgr.shuffle_data_set()
+    #train_data, train_labels, test_data, test_labels = mgr.get_data("Word-List")
     #mgr.save_data()
     #return
     
     data_path = "data_package"
     mgr2 = wordEmbeddingManager(saved_embedding_path=data_path, max_size=50100)
-    mgr2.shuffle_data_set()
     train_data, train_labels, test_data, test_labels = mgr2.get_data("Word-List")
-    print("%s" % len(train_labels))
+    #print("%s" % len(train_labels))
 
-    #for embedding_name in embedding_name_list:
-    #    embedding = mgr.get_embedding_by_name(embedding_name)
-    #    onehot    = embedding.word_to_index('anemail')
-    #    word      = embedding.index_to_word(1111)
-    #    embedding_list = embedding.convert_file_to_embedding(file_name, EMBEDDING_INTEGER)
-    #    print("%s : %s" % (embedding_name, embedding_list))
+    for embedding_name in embedding_name_list:
+        embedding = mgr.get_embedding_by_name(embedding_name)
+        onehot    = embedding.word_to_index('anemail')
+        word      = embedding.index_to_word(1111)
+        embedding_list = embedding.convert_file_to_embedding(file_name, EMBEDDING_INTEGER)
+        print("%s : %s" % (embedding_name, embedding_list))
         
 if __name__ == "__main__":
     main()

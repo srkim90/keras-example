@@ -113,7 +113,11 @@ class emailParser:
                 continue
             
             #parsed = parser.detect_content_category(__get_content_type_value(part))
-            parsed = parser.detect_content_category(part.items())
+            try:
+                parsed = parser.detect_content_category(part.items())
+            except UnicodeDecodeError as e:
+                continue
+                
             #print("%s %s" % (parsed,part.items()))
             if parsed == None:
                 continue
@@ -133,7 +137,10 @@ class emailParser:
         return result_list
 
     def __get_header_item(self):
-        headers = self.email_obj.items()
+        try:
+            headers = self.email_obj.items()
+        except:
+            return None
         parsed = emailHeaderParser(headers)
         if parsed == None:
             return None
@@ -226,8 +233,8 @@ def main():
         e.load_all()
         report = e.mk_mail_report()
         e.save_parsed_mail_info('/srkim/mnt/hdd250G/maildata/parsed_mails', report, do_gzip=True)
-        #jDumps = json.dumps(report, indent=4, ensure_ascii=False)
-        #print(jDumps)
+        jDumps = json.dumps(report, indent=4, ensure_ascii=False)
+        print(jDumps)
 
 if __name__ == "__main__":
     main()

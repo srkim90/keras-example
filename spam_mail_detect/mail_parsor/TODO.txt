@@ -1,0 +1,14 @@
+[TODAY]
+./do_eml_tokenize.py
+./do_make_word_embedding.py
+./do_make_word_embedding.py -m `date +%Y%m%d -d '-1days'` 250
+./do_convert_mail_dataset.py
+./do_make_element_hash.py 
+
+
+[ALL]
+./do_eml_tokenize.py        20190819 `date +%Y%m%d -d '-1days'`
+./do_make_word_embedding.py 20190819 `date +%Y%m%d -d '-1days'`
+./do_make_word_embedding.py -m `date +%Y%m%d -d '-1days'` -m 250
+./do_convert_mail_dataset.py
+./do_make_element_hash.py 

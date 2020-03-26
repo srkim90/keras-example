@@ -22,6 +22,11 @@ import codecs
 import chardet
 from numba import jit
 
+from stopword_data import *
+from nltk.stem import WordNetLemmatizer
+
+#nltk.download('wordnet')
+
 min_word_len      = 3
 max_word_len      = 12
 remove_char       = ['\r', '\n']
@@ -30,7 +35,55 @@ split_char_inc    = ['.', ',', '"', '\'', '[', ']', '<', '>', '*', '(', ')', ';'
 delete_if_include = [ '<tr>', '</tr>', '<td>', '</td>', '<table', '</table', '/p>', '<p>', '=",' ] # delete if include
 special_char      = ['~', '!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '_', '+', ',', '.', '?', '`', '=', '/', '\\']
 
-#@jit
+WORD_TYPE_NUMBER        = 1
+WORD_TYPE_HANGUL        = 2
+WORD_TYPE_ALPHABET      = 4
+
+g_re_hangule    = re.compile("^((?!\u3131-\u318E\uAC00-\uD7A3).)*$")
+g_re_alphabet   = re.compile("^((?!a-zA-Z).)*$")
+g_re_number     = re.compile("^((?!0-9).)*$")
+
+g_sub_hangule   = re.compile("[^\u3131-\u318E\uAC00-\uD7A3]")
+g_sub_alphabet  = re.compile("[^a-zA-Z]")
+g_sub_number    = re.compile("[^0-9]")
+
+g_Lemmatizer    = WordNetLemmatizer()
+
+def remove_stopword(origin_word): # 불용어 제거
+    word_classify = 0
+    result_word   = origin_word
+
+    if g_re_hangule.match(origin_word) != None:
+        word_classify = word_classify | WORD_TYPE_HANGUL
+
+    if g_re_alphabet.match(origin_word) != None:
+        word_classify = word_classify | WORD_TYPE_ALPHABET
+ 
+    if g_re_number.match(origin_word) != None:
+        word_classify = word_classify | WORD_TYPE_NUMBER
+ 
+    if word_classify & WORD_TYPE_HANGUL != 0:
+        pure_words = re.split(g_sub_hangule, origin_word)
+        for item in pure_words:
+            if len(item) == 0:
+                continue
+            if item in g_korean_stop_words:
+                result_word = result_word.replace(item, "")
+
+    if word_classify & WORD_TYPE_ALPHABET != 0:
+        pure_words = re.split(g_sub_alphabet, origin_word)
+        for item in pure_words:
+            if len(item) == 0:
+                continue
+            if item in g_english_stop_words:
+                result_word = result_word.replace(item, "")
+                continue
+            new_word = g_Lemmatizer.lemmatize(item) 
+            if new_word != item:
+                result_word = result_word.replace(item, new_word)
+
+    return result_word
+
 def listup_urls(decoded_body):
     url_skip    = ['\r', '\n']
     url_stop    = [',', '"', '\'', ' ', '\t', '>', ')', ']']
@@ -91,6 +144,8 @@ def do_word_split(decoded_body):
 
     # 1. URL 분리
     decoded_body, url_listup, domain_listup = listup_urls(decoded_body)
+
+    decoded_body = decoded_body.lower()
     
     #print(decoded_body)
 
@@ -174,6 +229,24 @@ def do_word_split(decoded_body):
                 if len(sub_text) >= min_word_len and len(sub_text) <= max_word_len:
                     sub_text_list2.append(sub_text)
 
-        result_list += sub_text_list2
+        # 6. 불용어를 제거한다.
+        sub_text_list = []
+        for word in sub_text_list2:
+            word = remove_stopword(word)
+            if len(word) > 1:
+                sub_text_list.append(word)
+
+        result_list += sub_text_list
 
     return result_list, url_listup, domain_listup
+
+
+def main():
+    result_word = remove_stopword("123454한글2입 을  is the of man organization Top the니다ABCD")
+    print(result_word)
+
+if "__main__" == __name__:
+    main()
+
+
+
